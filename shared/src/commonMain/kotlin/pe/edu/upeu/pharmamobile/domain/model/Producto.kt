@@ -1,8 +1,27 @@
 package pe.edu.upeu.pharmamobile.domain.model
 
 data class Producto(
-    val id: Long,
-    val nombre: String,
-    val precio: Double,
+    val id:Long,
+    val nombre:String,
+    val precio:Double,
     val stock: Int
-)
+) {
+    init {
+        require(nombre.isNotBlank()) {
+            "El nombre del producto no puede estar vacio"
+        }
+        require(precio > 0 && precio.isFinite()) {
+            "El precio debe ser un numero mayor que cero"
+        }
+        require(stock >= 0) {
+            "El stock no puede ser negativo"
+        }
+    }
+
+    val requiereReposicion: Boolean
+        get() = stock < STOCK_MINIMO
+
+    companion object {
+        const val STOCK_MINIMO = 10
+    }
+}

@@ -1,0 +1,24 @@
+package pe.edu.upeu.pharmamobile.presentation.producto
+
+data class ProductoUiState(
+    val fase: Fase = Fase.Cargando,
+    val formulario: FormularioProducto = FormularioProducto(),
+    val registrando: Boolean = false,
+    val mensajeExito: String? = null
+) {
+    sealed interface Fase {
+        data object Cargando : Fase
+        data object SinProductos : Fase
+        data class ConProductos(val productos: List<ProductoUi>) : Fase
+        data class Error(val mensaje: String) : Fase
+    }
+}
+
+data class FormularioProducto(
+    val nombre: String = "",
+    val precio: String = "",
+    val stock: String = "",
+    val nombreError: String? = null,
+    val precioError: String? = null,
+    val stockError: String? = null
+)
