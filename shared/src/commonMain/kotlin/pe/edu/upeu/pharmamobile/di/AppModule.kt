@@ -20,6 +20,7 @@ import pe.edu.upeu.pharmamobile.domain.usecase.ListarClientesUseCase
 import pe.edu.upeu.pharmamobile.domain.usecase.ListarProductosUseCase
 import pe.edu.upeu.pharmamobile.domain.usecase.RegistrarClienteUseCase
 import pe.edu.upeu.pharmamobile.domain.usecase.RegistrarProductoUseCase
+import pe.edu.upeu.pharmamobile.platform.InfoDispositivo
 import pe.edu.upeu.pharmamobile.presentation.cliente.ClienteViewModel
 import pe.edu.upeu.pharmamobile.presentation.producto.ProductoViewModel
 
@@ -31,11 +32,13 @@ val dataModule = module {
     single { ProductoRepositorioEnMemoria() } // Se mantiene en Koin por si se necesita después
     single { ProductoRepositorioRest(get(), CATEGORIA_POR_DEFECTO) }
 
-    // MODIFICACIÓN CLAVE: Enlazamos la interfaz directamente al backend REST.
-    // Esto evita que la memoria temporal oculte los datos o errores reales de tu Base de Datos.
+    // Enlace directo al backend REST
     single<ProductoRepository> { get<ProductoRepositorioRest>() }
 
     single<ClienteRepository> { ClienteRepositorioEnMemoria() }
+
+    // Capacidad nativa 3: Información del dispositivo
+    single { InfoDispositivo() }
 }
 
 val domainModule = module {

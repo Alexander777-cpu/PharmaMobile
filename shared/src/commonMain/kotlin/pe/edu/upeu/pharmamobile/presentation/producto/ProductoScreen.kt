@@ -15,11 +15,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -36,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.koinInject
+import pe.edu.upeu.pharmamobile.platform.InfoDispositivo
 import pe.edu.upeu.pharmamobile.presentation.components.EstadoVacio
 import pe.edu.upeu.pharmamobile.presentation.components.MensajeExito
 import pe.edu.upeu.pharmamobile.presentation.components.ValidatedTextField
@@ -47,6 +51,7 @@ fun ProductoScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val operacionEnCurso = uiState.operacion is ProductoUiState.Operacion.EnCurso
+    val infoDispositivo: InfoDispositivo = koinInject()
 
     Column(
         modifier = modifier
@@ -134,6 +139,45 @@ fun ProductoScreen(
                             }
                         }
                     )
+            }
+        }
+
+        // Tercera capacidad nativa conectada visualmente a la UI
+        DispositivoInfoCard(infoDispositivo)
+    }
+}
+
+@Composable
+private fun DispositivoInfoCard(infoDispositivo: InfoDispositivo) {
+    Card(
+        shape = MaterialTheme.shapes.small,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+            Column {
+                Text(
+                    text = "Dispositivo de ejecución",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = infoDispositivo.obtenerTexto(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
