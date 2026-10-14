@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinSerialization) // Plugin de serialización
 }
 
 kotlin {
@@ -46,6 +47,9 @@ kotlin {
 
             // Koin para Android
             implementation(libs.koin.android)
+
+            // Motor OkHttp para Ktor en Android
+            implementation(libs.ktor.client.okhttp)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -64,9 +68,21 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
+
+            // Dependencias Ktor Multiplataforma y Serialización
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.contentNegotiation)
+            implementation(libs.ktor.serialization.json)
+            implementation(libs.ktor.client.logging)
+        }
+        iosMain.dependencies {
+            // Motor Darwin para Ktor en iOS
+            implementation(libs.ktor.client.darwin)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            // Soporte para pruebas de corrutinas (runTest, TestDispatchers)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

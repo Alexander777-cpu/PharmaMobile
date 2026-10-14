@@ -28,6 +28,37 @@ class ProductoRepositorioEnMemoria : ProductoRepository {
         }
     }
 
+    override suspend fun obtener(id: Long): Producto {
+        delay(RETARDO_LISTADO_MS)
+        return candado.withLock {
+            productos.find { it.id == id }
+                ?: throw Exception("Producto no encontrado en memoria")
+        }
+    }
+
+    override suspend fun actualizar(producto: Producto): Producto {
+        delay(RETARDO_REGISTRO_MS)
+        return candado.withLock {
+            val index = productos.indexOfFirst { it.id == producto.id }
+            if (index != -1) {
+                productos[index] = producto
+                producto
+            } else {
+                throw Exception("Producto no encontrado para actualizar")
+            }
+        }
+    }
+
+    override suspend fun eliminar(id: Long) {
+        delay(RETARDO_REGISTRO_MS)
+        candado.withLock {
+            val removido = productos.removeAll { it.id == id }
+            if (!removido) {
+                throw Exception("Producto no encontrado para eliminar")
+            }
+        }
+    }
+
     private companion object {
         const val RETARDO_REGISTRO_MS = 400L
         const val RETARDO_LISTADO_MS = 600L

@@ -13,16 +13,22 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -40,6 +46,7 @@ fun ProductoScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val operacionEnCurso = uiState.operacion is ProductoUiState.Operacion.EnCurso
 
     Column(
         modifier = modifier
@@ -49,16 +56,33 @@ fun ProductoScreen(
     ) {
         FormularioProductoCard(
             formulario = uiState.formulario,
-            registrando = uiState.registrando,
+            bloqueado = operacionEnCurso,
+            esEdicion = uiState.idEdicion != null,
             onNombreChange = viewModel::onNombreChange,
             onPrecioChange = viewModel::onPrecioChange,
             onStockChange = viewModel::onStockChange,
-            onRegistrar = viewModel::registrar
+            onGuardar = viewModel::guardar,
+            onCancelar = viewModel::cancelarEdicion
         )
 
         uiState.mensajeExito?.let { MensajeExito(it) }
 
-        EncabezadoInventario(uiState.fase)
+        if (uiState.operacion is ProductoUiState.Operacion.Fallida) {
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = (uiState.operacion as ProductoUiState.Operacion.Fallida).mensaje,
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
+        EncabezadoInventario(uiState.fase, operacionEnCurso)
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when (val fase = uiState.fase) {
@@ -87,7 +111,13 @@ fun ProductoScreen(
                 is ProductoUiState.Fase.ConProductos ->
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(items = fase.productos, key = { it.id }) { producto ->
-                            ProductoItem(producto)
+                            ProductoItem(
+                                producto = producto,
+                                bloqueado = operacionEnCurso,
+                                onEditar = { viewModel.seleccionarParaEdicion(producto) },
+                                onEliminar = { producto.id.toLongOrNull()?.let { viewModel.eliminar(it) } },
+                                onCompartir = { viewModel.compartirProducto(producto) }
+                            )
                         }
                     }
 
@@ -112,18 +142,23 @@ fun ProductoScreen(
 @Composable
 private fun FormularioProductoCard(
     formulario: FormularioProducto,
-    registrando: Boolean,
+    bloqueado: Boolean,
+    esEdicion: Boolean,
     onNombreChange: (String) -> Unit,
     onPrecioChange: (String) -> Unit,
     onStockChange: (String) -> Unit,
-    onRegistrar: () -> Unit
+    onGuardar: () -> Unit,
+    onCancelar: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(text = "Registrar producto", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = if (esEdicion) "Editar producto" else "Registrar producto",
+                style = MaterialTheme.typography.titleMedium
+            )
 
             ValidatedTextField(
                 value = formulario.nombre,
@@ -159,42 +194,67 @@ private fun FormularioProductoCard(
                 )
             }
 
-            Button(
-                onClick = onRegistrar,
-                enabled = !registrando,
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(if (registrando) "Registrando…" else "Registrar")
+                if (esEdicion) {
+                    TextButton(
+                        onClick = onCancelar,
+                        enabled = !bloqueado,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancelar")
+                    }
+                }
+                Button(
+                    onClick = onGuardar,
+                    enabled = !bloqueado,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(if (bloqueado) "Guardando…" else "Guardar")
+                }
             }
         }
     }
 }
 
 @Composable
-private fun EncabezadoInventario(fase: ProductoUiState.Fase) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = "Inventario", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-        if (fase is ProductoUiState.Fase.ConProductos) {
-            val cantidad = fase.productos.size
-            Text(
-                text = if (cantidad == 1) "1 producto" else "$cantidad productos",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+private fun EncabezadoInventario(fase: ProductoUiState.Fase, cargando: Boolean) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "Inventario", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            if (fase is ProductoUiState.Fase.ConProductos) {
+                val cantidad = fase.productos.size
+                Text(
+                    text = if (cantidad == 1) "1 producto" else "$cantidad productos",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (cargando) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }
 
 @Composable
-private fun ProductoItem(producto: ProductoUi) {
+private fun ProductoItem(
+    producto: ProductoUi,
+    bloqueado: Boolean,
+    onEditar: () -> Unit,
+    onEliminar: () -> Unit,
+    onCompartir: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Surface(
                 shape = CircleShape,
@@ -214,19 +274,35 @@ private fun ProductoItem(producto: ProductoUi) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            if (producto.requiereReposicion) {
-                Surface(
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                ) {
+                if (producto.requiereReposicion) {
                     Text(
                         text = "Reponer",
                         style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 }
+            }
+            IconButton(onClick = onCompartir, enabled = !bloqueado) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Compartir",
+                    tint = MaterialTheme.colorScheme.secondary
+                )
+            }
+            IconButton(onClick = onEditar, enabled = !bloqueado) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Editar",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            IconButton(onClick = onEliminar, enabled = !bloqueado) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Eliminar",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
