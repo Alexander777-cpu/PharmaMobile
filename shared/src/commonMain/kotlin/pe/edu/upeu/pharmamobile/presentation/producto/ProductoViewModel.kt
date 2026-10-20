@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import pe.edu.upeu.pharmamobile.domain.error.ErrorApi
 import pe.edu.upeu.pharmamobile.domain.error.ErrorApiException
 import pe.edu.upeu.pharmamobile.domain.platform.Compartidor
+import pe.edu.upeu.pharmamobile.domain.repository.AuthRepository
 import pe.edu.upeu.pharmamobile.domain.usecase.ActualizarProductoUseCase
 import pe.edu.upeu.pharmamobile.domain.usecase.EliminarProductoUseCase
 import pe.edu.upeu.pharmamobile.domain.usecase.ListarProductosUseCase
@@ -22,6 +23,7 @@ class ProductoViewModel(
     private val actualizarProducto: ActualizarProductoUseCase,
     private val eliminarProducto: EliminarProductoUseCase,
     private val listarProductos: ListarProductosUseCase,
+    private val authRepository: AuthRepository? = null,
     private val compartidor: Compartidor = object : Compartidor { override fun compartir(texto: String) {} }
 ) : ViewModel() {
 
@@ -46,9 +48,14 @@ class ProductoViewModel(
                     }
                 },
                 onFailure = { excepcion ->
-                    val mensaje = traducirError(excepcion, esCreacion = false)
-                    _uiState.update { estado ->
-                        estado.copy(fase = ProductoUiState.Fase.Error(mensaje))
+                    val errorDominio = (excepcion as? ErrorApiException)?.error
+                    if (errorDominio is ErrorApi.SesionExpirada) {
+                        authRepository?.expirarSesion(errorDominio.mensaje)
+                    } else {
+                        val mensaje = traducirError(excepcion, esCreacion = false)
+                        _uiState.update { estado ->
+                            estado.copy(fase = ProductoUiState.Fase.Error(mensaje))
+                        }
                     }
                 }
             )
@@ -132,7 +139,6 @@ class ProductoViewModel(
                 onSuccess = { productoModificado ->
                     _uiState.update { estado ->
                         val faseActual = estado.fase
-                        // ACTUALIZACIÓN OPTIMISTA: Insertamos o modificamos directamente en la pantalla
                         val nuevaFase = if (faseActual is ProductoUiState.Fase.ConProductos) {
                             if (esCreacion) {
                                 ProductoUiState.Fase.ConProductos(listOf(productoModificado.toUi()) + faseActual.productos)
@@ -151,7 +157,6 @@ class ProductoViewModel(
                             fase = nuevaFase
                         )
                     }
-                    // ❌ Eliminamos cargarProductos() para que el backend no nos devuelva los fantasmas.
                 },
                 onFailure = { manejarFallo(it, esCreacion) }
             )
@@ -168,7 +173,6 @@ class ProductoViewModel(
                 onSuccess = {
                     _uiState.update { estado ->
                         val faseActual = estado.fase
-                        // ACTUALIZACIÓN OPTIMISTA: Borramos el producto de la pantalla inmediatamente
                         val nuevaFase = if (faseActual is ProductoUiState.Fase.ConProductos) {
                             val listaFiltrada = faseActual.productos.filter { it.id != id.toString() }
                             if (listaFiltrada.isEmpty()) ProductoUiState.Fase.SinProductos else ProductoUiState.Fase.ConProductos(listaFiltrada)
@@ -180,7 +184,6 @@ class ProductoViewModel(
                             fase = nuevaFase
                         )
                     }
-                    // ❌ Eliminamos cargarProductos() para forzar que desaparezca visualmente.
                 },
                 onFailure = { manejarFallo(it, esCreacion = false) }
             )
@@ -193,6 +196,13 @@ class ProductoViewModel(
 
     private fun manejarFallo(fallo: Throwable, esCreacion: Boolean) {
         val errorDominio = (fallo as? ErrorApiException)?.error
+
+        if (errorDominio is ErrorApi.SesionExpirada) {
+            viewModelScope.launch {
+                authRepository?.expirarSesion(errorDominio.mensaje)
+            }
+            return
+        }
 
         _uiState.update { estado ->
             when (errorDominio) {
@@ -230,7 +240,9 @@ class ProductoViewModel(
         return when (errorDominio) {
             is ErrorApi.Validacion -> "Revisa los datos ingresados en el formulario."
             ErrorApi.NoEncontrado -> if (esCreacion) "Ruta o categoría no encontrada en el servidor (404)." else "El producto ya no existe."
-            is ErrorApi.Conflicto -> errorDominio.mensaje // El servidor Spring Boot envía "El producto... ya se encuentra inactivo" aquí
+            is ErrorApi.Conflicto -> errorDominio.mensaje
+            is ErrorApi.SesionExpirada -> "El token ha expirado. Inicie sesión nuevamente"
+            ErrorApi.SinPermiso -> "No tienes permisos para realizar esta acción."
             ErrorApi.NoAutorizado -> "No tienes permisos para realizar esta acción."
             ErrorApi.Servidor -> "Error interno del servidor (500)."
             ErrorApi.SinConexion -> "Sin conexión con el servidor."

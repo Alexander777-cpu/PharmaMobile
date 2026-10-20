@@ -21,13 +21,26 @@ class LoginViewModel(
 
     init {
         verificarSesionGuardada()
+        observarExpiracion()
+    }
+
+    private fun observarExpiracion() {
+        viewModelScope.launch {
+            authRepository.mensajeExpiracion.collect { mensaje ->
+                if (mensaje != null) {
+                    _uiState.update { it.copy(sesion = null, error = mensaje) }
+                }
+            }
+        }
     }
 
     fun onUsuarioChange(nuevoUsuario: String) {
+        authRepository.limpiarMensajeExpiracion()
         _uiState.update { it.copy(usuario = nuevoUsuario, error = null) }
     }
 
     fun onClaveChange(nuevaClave: String) {
+        authRepository.limpiarMensajeExpiracion()
         _uiState.update { it.copy(clave = nuevaClave, error = null) }
     }
 
@@ -52,9 +65,19 @@ class LoginViewModel(
                 )
                 _uiState.update { it.copy(cargando = false, sesion = sesion) }
             } catch (e: AuthException) {
-                val mensajeError = when (e.errorSesion) {
+                val mensajeError = when (val err = e.errorSesion) {
                     ErrorSesion.CredencialesInvalidas -> "Usuario o contraseña incorrectos."
-                    ErrorSesion.SesionExpirada -> "La sesión ha expirado. Inicie sesión nuevamente."
+                    is ErrorSesion.SesionExpirada -> {
+                        val msg = err.mensaje
+                        when {
+                            msg?.contains("expirado", ignoreCase = true) == true -> "El token ha expirado. Inicie sesión nuevamente"
+                            msg?.contains("deshabilitado", ignoreCase = true) == true -> "El usuario está deshabilitado"
+                            !msg.isNullOrBlank() -> msg
+                            else -> "El token ha expirado. Inicie sesión nuevamente"
+                        }
+                    }
+                    is ErrorSesion.UsuarioDeshabilitado -> "El usuario está deshabilitado"
+                    is ErrorSesion.MensajeCustom -> err.mensaje
                     ErrorSesion.SinPermiso -> "No cuenta con los permisos necesarios."
                     ErrorSesion.SinConexion -> "Error de conexión con el servidor."
                 }

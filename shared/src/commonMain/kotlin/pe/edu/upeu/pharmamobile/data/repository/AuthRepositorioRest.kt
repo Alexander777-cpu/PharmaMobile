@@ -6,6 +6,9 @@ import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.auth.authProvider
 import io.ktor.client.plugins.auth.providers.BearerAuthProvider
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import pe.edu.upeu.pharmamobile.data.local.AlmacenSeguro
 import pe.edu.upeu.pharmamobile.data.mapper.toDomain
 import pe.edu.upeu.pharmamobile.data.remote.AuthApi
@@ -24,9 +27,13 @@ class AuthRepositorioRest(
     private val cliente: HttpClient
 ) : AuthRepository {
 
+    private val _mensajeExpiracion = MutableStateFlow<String?>(null)
+    override val mensajeExpiracion: StateFlow<String?> = _mensajeExpiracion.asStateFlow()
+
     private var sesionActual: Sesion? = null
 
     override suspend fun iniciarSesion(credenciales: Credenciales): Sesion {
+        limpiarMensajeExpiracion()
         try {
             val dto = api.login(LoginRequestDto(credenciales.usuario, credenciales.clave))
             almacen.guardarToken(dto.token)
@@ -38,7 +45,7 @@ class AuthRepositorioRest(
             return sesion
         } catch (e: ClientRequestException) {
             val errorBody = runCatching { e.response.body<ErrorResponseDto>() }.getOrNull()
-            val mensaje = errorBody?.message ?: e.message
+            val mensaje = errorBody?.message ?: errorBody?.error ?: e.message
             val errorSesion = mapearErrorSesion(e.response.status, mensaje)
             throw AuthException(errorSesion)
         } catch (e: Exception) {
@@ -69,13 +76,33 @@ class AuthRepositorioRest(
         sesionActual = null
     }
 
+    override suspend fun expirarSesion(mensajeServidor: String?) {
+        cerrarSesion()
+        val mensajeProcesado = when {
+            mensajeServidor?.contains("expirado", ignoreCase = true) == true ->
+                "El token ha expirado. Inicie sesión nuevamente"
+            mensajeServidor?.contains("deshabilitado", ignoreCase = true) == true ->
+                "El usuario está deshabilitado"
+            !mensajeServidor.isNullOrBlank() ->
+                mensajeServidor
+            else ->
+                "El token ha expirado. Inicie sesión nuevamente"
+        }
+        _mensajeExpiracion.value = mensajeProcesado
+    }
+
+    override fun limpiarMensajeExpiracion() {
+        _mensajeExpiracion.value = null
+    }
+
     private fun mapearErrorSesion(estado: HttpStatusCode, mensaje: String?): ErrorSesion {
         return when (estado) {
             HttpStatusCode.Unauthorized -> {
-                if (mensaje?.contains("expirado", ignoreCase = true) == true) {
-                    ErrorSesion.SesionExpirada
-                } else {
-                    ErrorSesion.CredencialesInvalidas
+                when {
+                    mensaje?.contains("expirado", ignoreCase = true) == true -> ErrorSesion.SesionExpirada(mensaje)
+                    mensaje?.contains("deshabilitado", ignoreCase = true) == true -> ErrorSesion.UsuarioDeshabilitado(mensaje)
+                    !mensaje.isNullOrBlank() -> ErrorSesion.MensajeCustom(mensaje)
+                    else -> ErrorSesion.CredencialesInvalidas
                 }
             }
             HttpStatusCode.Forbidden -> ErrorSesion.SinPermiso

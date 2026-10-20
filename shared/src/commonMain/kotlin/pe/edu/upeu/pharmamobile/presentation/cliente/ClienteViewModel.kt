@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import pe.edu.upeu.pharmamobile.domain.error.ErrorApi
+import pe.edu.upeu.pharmamobile.domain.error.ErrorApiException
 import pe.edu.upeu.pharmamobile.domain.repository.AuthRepository
 import pe.edu.upeu.pharmamobile.domain.usecase.ClienteInvalidoException
 import pe.edu.upeu.pharmamobile.domain.usecase.ListarClientesUseCase
@@ -43,7 +45,13 @@ class ClienteViewModel(
                     else ClienteUiState.Fase.ConClientes(clientes.map { it.aUi() })
                 },
                 onFailure = { fallo ->
-                    ClienteUiState.Fase.Error(fallo.message ?: "No tiene permisos para consultar clientes (403)")
+                    val errorDominio = (fallo as? ErrorApiException)?.error
+                    if (errorDominio is ErrorApi.SesionExpirada) {
+                        authRepository?.expirarSesion(errorDominio.mensaje)
+                        ClienteUiState.Fase.Error("Sesión expirada")
+                    } else {
+                        ClienteUiState.Fase.Error(fallo.message ?: "No tiene permisos para consultar clientes (403)")
+                    }
                 }
             )
             _uiState.update { it.copy(fase = fase) }
@@ -86,7 +94,10 @@ class ClienteViewModel(
                     cargarClientes()
                 },
                 onFailure = { fallo ->
-                    if (fallo is ClienteInvalidoException) {
+                    val errorDominio = (fallo as? ErrorApiException)?.error
+                    if (errorDominio is ErrorApi.SesionExpirada) {
+                        authRepository?.expirarSesion(errorDominio.mensaje)
+                    } else if (fallo is ClienteInvalidoException) {
                         _uiState.update {
                             it.copy(
                                 registrando = false,
