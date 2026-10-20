@@ -6,12 +6,15 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatformTools
+import pe.edu.upeu.pharmamobile.data.remote.AuthApi
 import pe.edu.upeu.pharmamobile.data.remote.ProductoApi
 import pe.edu.upeu.pharmamobile.data.remote.crearHttpClient
+import pe.edu.upeu.pharmamobile.data.repository.AuthRepositorioRest
 import pe.edu.upeu.pharmamobile.data.repository.ClienteRepositorioEnMemoria
 import pe.edu.upeu.pharmamobile.data.repository.ProductoRepositorioEnMemoria
 import pe.edu.upeu.pharmamobile.data.repository.ProductoRepositorioRest
 import pe.edu.upeu.pharmamobile.domain.platform.Compartidor
+import pe.edu.upeu.pharmamobile.domain.repository.AuthRepository
 import pe.edu.upeu.pharmamobile.domain.repository.ClienteRepository
 import pe.edu.upeu.pharmamobile.domain.repository.ProductoRepository
 import pe.edu.upeu.pharmamobile.domain.usecase.ActualizarProductoUseCase
@@ -22,22 +25,22 @@ import pe.edu.upeu.pharmamobile.domain.usecase.RegistrarClienteUseCase
 import pe.edu.upeu.pharmamobile.domain.usecase.RegistrarProductoUseCase
 import pe.edu.upeu.pharmamobile.platform.InfoDispositivo
 import pe.edu.upeu.pharmamobile.presentation.cliente.ClienteViewModel
+import pe.edu.upeu.pharmamobile.presentation.login.LoginViewModel
 import pe.edu.upeu.pharmamobile.presentation.producto.ProductoViewModel
 
 private const val CATEGORIA_POR_DEFECTO = 1L
 
 val dataModule = module {
-    single { crearHttpClient(get(), get(named("urlBase"))) }
+    single { crearHttpClient(get(), get(named("urlBase")), get()) }
+    single { AuthApi(get()) }
     single { ProductoApi(get()) }
-    single { ProductoRepositorioEnMemoria() } // Se mantiene en Koin por si se necesita después
+    single { ProductoRepositorioEnMemoria() }
     single { ProductoRepositorioRest(get(), CATEGORIA_POR_DEFECTO) }
 
-    // Enlace directo al backend REST
     single<ProductoRepository> { get<ProductoRepositorioRest>() }
-
     single<ClienteRepository> { ClienteRepositorioEnMemoria() }
+    single<AuthRepository> { AuthRepositorioRest(get(), get(), get()) }
 
-    // Capacidad nativa 3: Información del dispositivo
     single { InfoDispositivo() }
 }
 
@@ -62,7 +65,8 @@ val presentationModule = module {
             }
         )
     }
-    viewModel { ClienteViewModel(get(), get()) }
+    viewModel { ClienteViewModel(get(), get(), get()) }
+    viewModel { LoginViewModel(get()) }
 }
 
 fun initKoin(configuracionAdicional: KoinApplication.() -> Unit = {}) {

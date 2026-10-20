@@ -11,7 +11,7 @@ fun ProductoResponseDto.toDomain(): Producto = Producto(
     stock = stock
 )
 
-fun Producto.toRequest(categoriaId: Long): ProductoRequestDto = ProductoRequestDto(
+fun Producto.toRequest(categoriaId: Long = 1L): ProductoRequestDto = ProductoRequestDto(
     nombre = nombre,
     precio = precio,
     stock = stock,

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalPharmacy
@@ -47,14 +48,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.koin.compose.KoinContext
 import org.koin.compose.viewmodel.koinViewModel
-
+import pe.edu.upeu.pharmamobile.domain.model.Sesion
 import pe.edu.upeu.pharmamobile.navigation.Screen
 import pe.edu.upeu.pharmamobile.presentation.cliente.ClienteScreen
 import pe.edu.upeu.pharmamobile.presentation.components.EstadoVacio
 import pe.edu.upeu.pharmamobile.presentation.inicio.InicioScreen
+import pe.edu.upeu.pharmamobile.presentation.login.LoginScreen
+import pe.edu.upeu.pharmamobile.presentation.login.LoginViewModel
 import pe.edu.upeu.pharmamobile.presentation.producto.ProductoScreen
 import pe.edu.upeu.pharmamobile.theme.PharmaMobilTheme
 
@@ -86,8 +90,18 @@ private val ScreenSaver = Saver<Screen, Int>(
 @Composable
 fun App() = KoinContext {
 
+    val loginViewModel: LoginViewModel = koinViewModel()
+    val uiState by loginViewModel.uiState.collectAsStateWithLifecycle()
+
     var pantallaActual by rememberSaveable(stateSaver = ScreenSaver) {
-        mutableStateOf<Screen>(Screen.Inicio)
+        mutableStateOf<Screen>(Screen.Login)
+    }
+
+    // Forzamos volver a Login si la sesión se pierde y no estábamos ya en Login
+    androidx.compose.runtime.LaunchedEffect(uiState.sesion) {
+        if (uiState.sesion == null && pantallaActual != Screen.Login) {
+            pantallaActual = Screen.Login
+        }
     }
 
     var darkTheme by rememberSaveable {
@@ -107,37 +121,58 @@ fun App() = KoinContext {
             drawerState = drawerState,
             drawerContent = {
                 ModalDrawerSheet {
-                    DrawerHeader()
+                    DrawerHeader(uiState.sesion)
 
                     HorizontalDivider()
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    DESTINOS.forEach { destino ->
-                        NavigationDrawerItem(
-                            label = { Text(destino.titulo) },
-                            selected = pantallaActual == destino.screen,
-                            onClick = {
-                                pantallaActual = destino.screen
-                                scope.launch {
-                                    drawerState.close()
-                                }
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = destino.icono,
-                                    contentDescription = null
+                    if (pantallaActual != Screen.Login) {
+                        DESTINOS.filter { uiState.sesion?.puede(obtenerPermisoParaDestino(it.screen)) == true || it.screen == Screen.Inicio }.forEach { destino ->
+                            NavigationDrawerItem(
+                                label = { Text(destino.titulo) },
+                                selected = pantallaActual == destino.screen,
+                                onClick = {
+                                    pantallaActual = destino.screen
+                                    scope.launch {
+                                        drawerState.close()
+                                    }
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = destino.icono,
+                                        contentDescription = null
+                                    )
+                                },
+                                modifier = Modifier.padding(
+                                    NavigationDrawerItemDefaults.ItemPadding
                                 )
-                            },
-                            modifier = Modifier.padding(
-                                NavigationDrawerItemDefaults.ItemPadding
                             )
-                        )
+                        }
                     }
 
                     Spacer(modifier = Modifier.weight(1f))
 
                     HorizontalDivider()
+
+                    NavigationDrawerItem(
+                        label = { Text("Cerrar sesión") },
+                        selected = false,
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                                loginViewModel.cerrarSesion()
+                                pantallaActual = Screen.Login
+                            }
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = null
+                            )
+                        },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
 
                     ModoOscuro(
                         activo = darkTheme,
@@ -148,30 +183,32 @@ fun App() = KoinContext {
         ) {
             Scaffold(
                 topBar = {
-                    TopAppBar(
-                        title = {
-                            Text(text = tituloDe(pantallaActual))
-                        },
-                        navigationIcon = {
-                            IconButton(
-                                onClick = {
-                                    scope.launch {
-                                        drawerState.open()
+                    if (pantallaActual != Screen.Login) {
+                        TopAppBar(
+                            title = {
+                                Text(text = tituloDe(pantallaActual))
+                            },
+                            navigationIcon = {
+                                IconButton(
+                                    onClick = {
+                                        scope.launch {
+                                            drawerState.open()
+                                        }
                                     }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Menu,
+                                        contentDescription = "Abrir menú"
+                                    )
                                 }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Menu,
-                                    contentDescription = "Abrir menú"
-                                )
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         )
-                    )
+                    }
                 }
             ) { paddingValues ->
                 Box(
@@ -180,6 +217,12 @@ fun App() = KoinContext {
                         .padding(paddingValues)
                 ) {
                     when (pantallaActual) {
+                        Screen.Login ->
+                            LoginScreen(
+                                viewModel = loginViewModel,
+                                onLoginExitoso = { pantallaActual = Screen.Inicio }
+                            )
+
                         Screen.Inicio ->
                             InicioScreen(
                                 onNavegar = { destino -> pantallaActual = destino }
@@ -210,7 +253,7 @@ fun App() = KoinContext {
 }
 
 @Composable
-private fun DrawerHeader() {
+private fun DrawerHeader(sesion: Sesion?) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -238,11 +281,25 @@ private fun DrawerHeader() {
                 style = MaterialTheme.typography.titleLarge
             )
 
-            Text(
-                text = "Gestión farmacéutica",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (sesion != null) {
+                val rolTexto = when (sesion.usuario.lowercase()) {
+                    "admin" -> "ADMIN"
+                    "vendedor" -> "VENDEDOR"
+                    "almacen" -> "ALMACENERO"
+                    else -> "USUARIO"
+                }
+                Text(
+                    text = "Usuario: ${sesion.usuario} | Rol: $rolTexto",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Text(
+                    text = "Gestión farmacéutica",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -277,6 +334,15 @@ private fun ModoOscuro(
             checked = activo,
             onCheckedChange = onCambiar
         )
+    }
+}
+
+private fun obtenerPermisoParaDestino(screen: Screen): String {
+    return when (screen) {
+        Screen.Productos -> "CATALOGO_LEER"
+        Screen.Clientes -> "CLIENTES_LEER"
+        Screen.Pedidos -> "VENTAS_REGISTRAR"
+        else -> ""
     }
 }
 

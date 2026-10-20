@@ -52,6 +52,11 @@ fun ProductoScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val operacionEnCurso = uiState.operacion is ProductoUiState.Operacion.EnCurso
     val infoDispositivo: InfoDispositivo = koinInject()
+    
+    // Obtenemos la sesión para los permisos
+    val loginViewModel: pe.edu.upeu.pharmamobile.presentation.login.LoginViewModel = koinInject()
+    val sesionUiState by loginViewModel.uiState.collectAsStateWithLifecycle()
+    val tienePermisoEscribir = sesionUiState.sesion?.puede("CATALOGO_ESCRIBIR") == true
 
     Column(
         modifier = modifier
@@ -59,16 +64,18 @@ fun ProductoScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        FormularioProductoCard(
-            formulario = uiState.formulario,
-            bloqueado = operacionEnCurso,
-            esEdicion = uiState.idEdicion != null,
-            onNombreChange = viewModel::onNombreChange,
-            onPrecioChange = viewModel::onPrecioChange,
-            onStockChange = viewModel::onStockChange,
-            onGuardar = viewModel::guardar,
-            onCancelar = viewModel::cancelarEdicion
-        )
+        if (tienePermisoEscribir) {
+            FormularioProductoCard(
+                formulario = uiState.formulario,
+                bloqueado = operacionEnCurso,
+                esEdicion = uiState.idEdicion != null,
+                onNombreChange = viewModel::onNombreChange,
+                onPrecioChange = viewModel::onPrecioChange,
+                onStockChange = viewModel::onStockChange,
+                onGuardar = viewModel::guardar,
+                onCancelar = viewModel::cancelarEdicion
+            )
+        }
 
         uiState.mensajeExito?.let { MensajeExito(it) }
 
@@ -119,6 +126,7 @@ fun ProductoScreen(
                             ProductoItem(
                                 producto = producto,
                                 bloqueado = operacionEnCurso,
+                                tienePermisoEscribir = tienePermisoEscribir,
                                 onEditar = { viewModel.seleccionarParaEdicion(producto) },
                                 onEliminar = { producto.id.toLongOrNull()?.let { viewModel.eliminar(it) } },
                                 onCompartir = { viewModel.compartirProducto(producto) }
@@ -290,6 +298,7 @@ private fun EncabezadoInventario(fase: ProductoUiState.Fase, cargando: Boolean) 
 private fun ProductoItem(
     producto: ProductoUi,
     bloqueado: Boolean,
+    tienePermisoEscribir: Boolean,
     onEditar: () -> Unit,
     onEliminar: () -> Unit,
     onCompartir: () -> Unit
@@ -334,19 +343,21 @@ private fun ProductoItem(
                     tint = MaterialTheme.colorScheme.secondary
                 )
             }
-            IconButton(onClick = onEditar, enabled = !bloqueado) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Editar",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            IconButton(onClick = onEliminar, enabled = !bloqueado) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Eliminar",
-                    tint = MaterialTheme.colorScheme.error
-                )
+            if (tienePermisoEscribir) {
+                IconButton(onClick = onEditar, enabled = !bloqueado) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Editar",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(onClick = onEliminar, enabled = !bloqueado) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Eliminar",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

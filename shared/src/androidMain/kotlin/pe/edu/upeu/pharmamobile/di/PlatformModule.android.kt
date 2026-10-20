@@ -30,4 +30,10 @@ actual val platformModule: Module = module {
         val contexto = runCatching { androidContext() }.getOrElse { obtenerContextoSeguro() }
         CompartidorAndroid(contexto)
     }
+
+    // 4. Capacidad nativa de almacenamiento seguro (Sesión 10)
+    single<pe.edu.upeu.pharmamobile.data.local.AlmacenSeguro> {
+        val contexto = runCatching { androidContext() }.getOrElse { obtenerContextoSeguro() }
+        pe.edu.upeu.pharmamobile.data.local.AlmacenSeguroAndroid(contexto)
+    }
 }

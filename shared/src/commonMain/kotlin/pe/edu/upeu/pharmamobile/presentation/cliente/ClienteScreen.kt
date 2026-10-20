@@ -42,6 +42,11 @@ fun ClienteScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    
+    // Obtenemos la sesión para los permisos
+    val loginViewModel: pe.edu.upeu.pharmamobile.presentation.login.LoginViewModel = org.koin.compose.koinInject()
+    val sesionUiState by loginViewModel.uiState.collectAsStateWithLifecycle()
+    val tienePermisoRegistrar = sesionUiState.sesion?.puede("VENTAS_REGISTRAR") == true
 
     Column(
         modifier = modifier
@@ -49,16 +54,33 @@ fun ClienteScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        FormularioClienteCard(
-            formulario = uiState.formulario,
-            registrando = uiState.registrando,
-            onNombreChange = viewModel::onNombreChange,
-            onCorreoChange = viewModel::onCorreoChange,
-            onTelefonoChange = viewModel::onTelefonoChange,
-            onRegistrar = viewModel::registrar
-        )
+        if (tienePermisoRegistrar) {
+            FormularioClienteCard(
+                formulario = uiState.formulario,
+                registrando = uiState.registrando,
+                onNombreChange = viewModel::onNombreChange,
+                onCorreoChange = viewModel::onCorreoChange,
+                onTelefonoChange = viewModel::onTelefonoChange,
+                onRegistrar = viewModel::registrar
+            )
+        }
 
         uiState.mensajeExito?.let { MensajeExito(it) }
+
+        if (uiState.fase is ClienteUiState.Fase.Error) {
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = (uiState.fase as ClienteUiState.Fase.Error).mensaje,
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
 
         EncabezadoCartera(uiState.fase)
 
@@ -96,7 +118,7 @@ fun ClienteScreen(
                 is ClienteUiState.Fase.Error ->
                     EstadoVacio(
                         icono = Icons.Default.CloudOff,
-                        titulo = "No pudimos cargar los clientes",
+                        titulo = "Acceso Denegado (403)",
                         descripcion = fase.mensaje,
                         colorIcono = MaterialTheme.colorScheme.error,
                         modifier = Modifier.align(Alignment.Center),

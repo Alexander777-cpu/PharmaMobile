@@ -17,4 +17,9 @@ actual val platformModule: Module = module {
 
     // 3. Capacidad nativa de compartir
     single<Compartidor> { CompartidorIos() }
+
+    // 4. Capacidad nativa de almacenamiento seguro (Sesión 10)
+    single<pe.edu.upeu.pharmamobile.data.local.AlmacenSeguro> { 
+        pe.edu.upeu.pharmamobile.data.local.AlmacenSeguroIos() 
+    }
 }

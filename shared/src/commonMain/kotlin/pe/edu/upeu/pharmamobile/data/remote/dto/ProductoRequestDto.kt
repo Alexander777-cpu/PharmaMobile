@@ -7,6 +7,6 @@ data class ProductoRequestDto(
     val nombre: String,
     val precio: Double,
     val stock: Int,
-    val estado: Boolean, // Al no tener '= true', se serializa siempre obligatoriamente
-    val categoriaId: Long
+    val estado: Boolean = true,
+    val categoriaId: Long = 1L
 )

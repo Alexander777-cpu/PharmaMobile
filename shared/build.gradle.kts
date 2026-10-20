@@ -50,6 +50,9 @@ kotlin {
 
             // Motor OkHttp para Ktor en Android
             implementation(libs.ktor.client.okhttp)
+
+            // Almacenamiento seguro en Android
+            implementation(libs.androidx.security.crypto)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -74,6 +77,7 @@ kotlin {
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.serialization.json)
             implementation(libs.ktor.client.logging)
+            implementation(libs.ktor.client.auth)
         }
         iosMain.dependencies {
             // Motor Darwin para Ktor en iOS

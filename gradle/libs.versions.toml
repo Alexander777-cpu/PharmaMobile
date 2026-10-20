@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.2"
+agp = "9.3.3"
 android-compileSdk = "37"
 android-minSdk = "24"
 android-targetSdk = "36"
@@ -16,6 +16,8 @@ material3 = "1.11.0-alpha07"
 koin = "4.0.0"
 ktor = "3.6.0"
 kotlinx-coroutines = "1.9.0"
+# --- NUEVAS VERSIONES ---
+security-crypto = "1.1.0-alpha06"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -47,8 +49,13 @@ ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", 
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+# --- NUEVA DEPENDENCIA KTOR ---
+ktor-client-auth = { module = "io.ktor:ktor-client-auth", version.ref = "ktor" }
 
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+
+# --- NUEVA DEPENDENCIA SEGURIDAD ANDROID ---
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "security-crypto" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

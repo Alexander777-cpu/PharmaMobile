@@ -7,13 +7,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import pe.edu.upeu.pharmamobile.domain.repository.AuthRepository
 import pe.edu.upeu.pharmamobile.domain.usecase.ClienteInvalidoException
 import pe.edu.upeu.pharmamobile.domain.usecase.ListarClientesUseCase
 import pe.edu.upeu.pharmamobile.domain.usecase.RegistrarClienteUseCase
 
 class ClienteViewModel(
     private val registrarCliente: RegistrarClienteUseCase,
-    private val listarClientes: ListarClientesUseCase
+    private val listarClientes: ListarClientesUseCase,
+    private val authRepository: AuthRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ClienteUiState())
@@ -26,13 +28,22 @@ class ClienteViewModel(
     fun cargarClientes() {
         viewModelScope.launch {
             _uiState.update { it.copy(fase = ClienteUiState.Fase.Cargando) }
+
+            val sesion = authRepository?.sesionGuardada()
+            if (sesion != null && !sesion.puede("CLIENTES_LEER")) {
+                _uiState.update {
+                    it.copy(fase = ClienteUiState.Fase.Error("No tiene permisos para consultar clientes (403)"))
+                }
+                return@launch
+            }
+
             val fase = listarClientes().fold(
                 onSuccess = { clientes ->
                     if (clientes.isEmpty()) ClienteUiState.Fase.SinClientes
                     else ClienteUiState.Fase.ConClientes(clientes.map { it.aUi() })
                 },
                 onFailure = { fallo ->
-                    ClienteUiState.Fase.Error(fallo.message ?: "Error al cargar")
+                    ClienteUiState.Fase.Error(fallo.message ?: "No tiene permisos para consultar clientes (403)")
                 }
             )
             _uiState.update { it.copy(fase = fase) }
