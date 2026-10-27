@@ -53,7 +53,6 @@ fun ProductoScreen(
     val operacionEnCurso = uiState.operacion is ProductoUiState.Operacion.EnCurso
     val infoDispositivo: InfoDispositivo = koinInject()
     
-    // Obtenemos la sesión para los permisos
     val loginViewModel: pe.edu.upeu.pharmamobile.presentation.login.LoginViewModel = koinInject()
     val sesionUiState by loginViewModel.uiState.collectAsStateWithLifecycle()
     val tienePermisoEscribir = sesionUiState.sesion?.puede("CATALOGO_ESCRIBIR") == true
@@ -109,7 +108,11 @@ fun ProductoScreen(
             }
         }
 
-        EncabezadoInventario(uiState.fase, uiState.sincronizando)
+        EncabezadoInventario(
+            fase = uiState.fase,
+            cargando = uiState.sincronizando,
+            ultimaSincronizacionTexto = uiState.ultimaSincronizacionTexto
+        )
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when (val fase = uiState.fase) {
@@ -286,13 +289,24 @@ private fun FormularioProductoCard(
 }
 
 @Composable
-private fun EncabezadoInventario(fase: ProductoUiState.Fase, cargando: Boolean) {
+private fun EncabezadoInventario(
+    fase: ProductoUiState.Fase,
+    cargando: Boolean,
+    ultimaSincronizacionTexto: String
+) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Inventario", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "Inventario", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = ultimaSincronizacionTexto,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             if (fase is ProductoUiState.Fase.ConProductos) {
                 val cantidad = fase.productos.size
                 Text(

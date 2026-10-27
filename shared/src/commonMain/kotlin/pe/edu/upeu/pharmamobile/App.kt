@@ -20,6 +20,8 @@ import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -60,6 +62,7 @@ import pe.edu.upeu.pharmamobile.presentation.inicio.InicioScreen
 import pe.edu.upeu.pharmamobile.presentation.login.LoginScreen
 import pe.edu.upeu.pharmamobile.presentation.login.LoginViewModel
 import pe.edu.upeu.pharmamobile.presentation.producto.ProductoScreen
+import pe.edu.upeu.pharmamobile.presentation.producto.ProductoViewModel
 import pe.edu.upeu.pharmamobile.theme.PharmaMobilTheme
 
 /** Una sola fuente para el menu lateral y el titulo de la barra superior. */
@@ -202,10 +205,34 @@ fun App() = KoinContext {
                                     )
                                 }
                             },
+                            actions = {
+                                if (pantallaActual == Screen.Productos) {
+                                    val productoViewModel: ProductoViewModel = koinViewModel()
+                                    val productoUiState by productoViewModel.uiState.collectAsStateWithLifecycle()
+                                    IconButton(
+                                        onClick = { productoViewModel.sincronizar() },
+                                        enabled = !productoUiState.sincronizando
+                                    ) {
+                                        if (productoUiState.sincronizando) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Default.Sync,
+                                                contentDescription = "Sincronizar"
+                                            )
+                                        }
+                                    }
+                                }
+                            },
                             colors = TopAppBarDefaults.topAppBarColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         )
                     }

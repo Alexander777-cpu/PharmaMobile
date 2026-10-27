@@ -32,6 +32,7 @@ class AlmacenSeguroIos : AlmacenSeguro {
     
     private val service = "pe.edu.upeu.pharmamobile"
     private val account = "jwt_token"
+    private var ultimaSincronizacionTemp: Long? = null
 
     override fun guardarToken(token: String) {
         borrarToken() // Limpiamos si existía previamente
@@ -80,5 +81,13 @@ class AlmacenSeguroIos : AlmacenSeguro {
 
         @Suppress("UNCHECKED_CAST")
         SecItemDelete(query as CFDictionaryRef)
+    }
+
+    override fun guardarUltimaSincronizacion(timestampMs: Long) {
+        ultimaSincronizacionTemp = timestampMs
+    }
+
+    override fun leerUltimaSincronizacion(): Long? {
+        return ultimaSincronizacionTemp
     }
 }

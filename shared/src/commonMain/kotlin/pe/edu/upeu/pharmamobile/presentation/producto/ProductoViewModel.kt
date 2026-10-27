@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import pe.edu.upeu.pharmamobile.data.local.AlmacenSeguro
 import pe.edu.upeu.pharmamobile.domain.error.ErrorApi
 import pe.edu.upeu.pharmamobile.domain.error.ErrorApiException
 import pe.edu.upeu.pharmamobile.domain.platform.Compartidor
@@ -18,6 +19,8 @@ import pe.edu.upeu.pharmamobile.domain.usecase.ListarProductosUseCase
 import pe.edu.upeu.pharmamobile.domain.usecase.ProductoInvalidoException
 import pe.edu.upeu.pharmamobile.domain.usecase.RegistrarProductoUseCase
 import pe.edu.upeu.pharmamobile.domain.usecase.comoTextoParaCompartir
+import pe.edu.upeu.pharmamobile.presentation.util.formatearAntiguedadSincronizacion
+import pe.edu.upeu.pharmamobile.presentation.util.obtenerTiempoActualMs
 
 class ProductoViewModel(
     private val registrarProducto: RegistrarProductoUseCase,
@@ -26,6 +29,7 @@ class ProductoViewModel(
     private val listarProductos: ListarProductosUseCase,
     private val productoRepository: ProductoRepository,
     private val authRepository: AuthRepository? = null,
+    private val almacenSeguro: AlmacenSeguro? = null,
     private val compartidor: Compartidor = object : Compartidor { override fun compartir(texto: String) {} }
 ) : ViewModel() {
 
@@ -33,8 +37,15 @@ class ProductoViewModel(
     val uiState: StateFlow<ProductoUiState> = _uiState.asStateFlow()
 
     init {
+        cargarUltimaSincronizacion()
         observarBaseDeDatos()
         sincronizar()
+    }
+
+    fun cargarUltimaSincronizacion() {
+        val timestamp = almacenSeguro?.leerUltimaSincronizacion()
+        val texto = formatearAntiguedadSincronizacion(timestamp)
+        _uiState.update { it.copy(ultimaSincronizacionTexto = texto) }
     }
 
     private fun observarBaseDeDatos() {
@@ -56,7 +67,16 @@ class ProductoViewModel(
             runCatching {
                 productoRepository.sincronizar()
             }.onSuccess {
-                _uiState.update { it.copy(sincronizando = false, avisoRed = null) }
+                val ahora = obtenerTiempoActualMs()
+                almacenSeguro?.guardarUltimaSincronizacion(ahora)
+                val texto = formatearAntiguedadSincronizacion(ahora)
+                _uiState.update {
+                    it.copy(
+                        sincronizando = false,
+                        avisoRed = null,
+                        ultimaSincronizacionTexto = texto
+                    )
+                }
             }.onFailure { excepcion ->
                 val errorDominio = (excepcion as? ErrorApiException)?.error
                 if (errorDominio is ErrorApi.SesionExpirada) {

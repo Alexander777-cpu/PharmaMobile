@@ -69,6 +69,7 @@ val presentationModule = module {
             listarProductos = get(),
             productoRepository = get(),
             authRepository = get(),
+            almacenSeguro = get(),
             compartidor = getOrNull<Compartidor>() ?: object : Compartidor {
                 override fun compartir(texto: String) {}
             }

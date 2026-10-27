@@ -29,4 +29,14 @@ class AlmacenSeguroAndroid(contexto: Context) : AlmacenSeguro {
     override fun borrarToken() {
         sharedPreferences.edit().remove("jwt_token").apply()
     }
+
+    override fun guardarUltimaSincronizacion(timestampMs: Long) {
+        sharedPreferences.edit().putLong("ultima_sincronizacion_epoch", timestampMs).apply()
+    }
+
+    override fun leerUltimaSincronizacion(): Long? {
+        return if (sharedPreferences.contains("ultima_sincronizacion_epoch")) {
+            sharedPreferences.getLong("ultima_sincronizacion_epoch", 0L)
+        } else null
+    }
 }

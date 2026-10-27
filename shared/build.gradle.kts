@@ -73,6 +73,7 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            @Suppress("DEPRECATION")
             implementation(compose.materialIconsExtended)
 
             implementation(libs.koin.core)
@@ -95,6 +96,11 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+        }
+        getByName("androidHostTest") {
+            dependencies {
+                implementation("app.cash.sqldelight:sqlite-driver:2.0.2")
+            }
         }
     }
 }

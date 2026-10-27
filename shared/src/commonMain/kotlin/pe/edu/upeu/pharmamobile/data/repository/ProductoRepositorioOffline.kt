@@ -37,10 +37,11 @@ class ProductoRepositorioOffline(
         pendientes.forEach { p ->
             runCatching {
                 remoto.registrar(p)
+                local.borrarPorId(p.id)
             }.onFailure { e ->
                 val error = (e as? ErrorApiException)?.error
                 if (error is ErrorApi.SesionExpirada) {
-                    throw e // Re-lanzar 401 explícito para expulsión a Login
+                    throw e
                 }
             }
         }
@@ -51,7 +52,7 @@ class ProductoRepositorioOffline(
         } catch (e: Exception) {
             val error = (e as? ErrorApiException)?.error
             if (error is ErrorApi.SesionExpirada) {
-                throw e // Re-lanzar 401 explícito para expulsión a Login
+                throw e
             } else {
                 throw ErrorApiException(ErrorApi.SinConexion)
             }

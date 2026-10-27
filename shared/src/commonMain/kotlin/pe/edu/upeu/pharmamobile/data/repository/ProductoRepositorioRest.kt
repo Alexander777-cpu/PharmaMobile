@@ -9,7 +9,7 @@ import pe.edu.upeu.pharmamobile.data.remote.ejecutarLlamada
 import pe.edu.upeu.pharmamobile.domain.model.Producto
 import pe.edu.upeu.pharmamobile.domain.repository.ProductoRepository
 
-class ProductoRepositorioRest(
+open class ProductoRepositorioRest(
     private val api: ProductoApi,
     private val categoriaPorDefecto: Long
 ) : ProductoRepository {

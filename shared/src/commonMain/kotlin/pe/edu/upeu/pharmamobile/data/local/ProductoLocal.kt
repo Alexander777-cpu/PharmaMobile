@@ -34,6 +34,10 @@ class ProductoLocal(db: PharmaDb) {
         return producto.copy(id = nuevoIdLocal)
     }
 
+    fun borrarPorId(id: Long) {
+        consultas.borrarPorId(id)
+    }
+
     fun reemplazarSincronizados(productos: List<Producto>) {
         consultas.transaction {
             consultas.borrarSincronizados()
