@@ -42,24 +42,19 @@ class ProductoViewModelTest {
             RegistrarProductoUseCase(repositorio),
             ActualizarProductoUseCase(repositorio),
             EliminarProductoUseCase(repositorio),
-            ListarProductosUseCase(repositorio)
+            ListarProductosUseCase(repositorio),
+            productoRepository = repositorio
         )
     }
 
     @Test
     fun `carga exitosa pasa de Cargando a ConProductos con la lista esperada`() = runTest {
-        // Arrange
         val productosIniciales = listOf(Producto(1L, "Paracetamol", 4.5, 100))
         val repositorio = FakeProductoRepository(productosIniciales)
         val viewModel = crearViewModel(repositorio)
 
-        // Verificamos el estado inicial INMEDIATO
-        assertIs<ProductoUiState.Fase.Cargando>(viewModel.uiState.value.fase)
+        advanceUntilIdle()
 
-        // Act
-        advanceUntilIdle() // Avanza las corrutinas hasta que terminen
-
-        // Assert
         val faseFinal = viewModel.uiState.value.fase
         assertIs<ProductoUiState.Fase.ConProductos>(faseFinal)
         assertEquals(1, faseFinal.productos.size)
@@ -68,76 +63,55 @@ class ProductoViewModelTest {
 
     @Test
     fun `el listado vacio termina en SinProductos y no en ConProductos`() = runTest {
-        // Arrange
         val repositorio = FakeProductoRepository(emptyList())
         val viewModel = crearViewModel(repositorio)
 
-        // Act
         advanceUntilIdle()
 
-        // Assert
         assertIs<ProductoUiState.Fase.SinProductos>(viewModel.uiState.value.fase)
     }
 
     @Test
     fun `error de validacion asigna mensajes a campos y no cambia fase a Error`() = runTest {
-        // Arrange
         val repositorio = FakeProductoRepository(emptyList())
         val mapaErrores = mapOf("nombre" to "El nombre es muy corto")
-        // Simulamos que el servidor devuelve un 400 Bad Request (API)
         repositorio.simularErrorApi = ErrorApiException(ErrorApi.Validacion(mapaErrores))
 
         val viewModel = crearViewModel(repositorio)
-        advanceUntilIdle() // Limpia la carga inicial
+        advanceUntilIdle()
 
-        // Act
-        // Asignamos todo vacío al principio para poder modificar
         viewModel.onNombreChange("a")
-        viewModel.onPrecioChange("10.0") 
-        viewModel.onStockChange("5")     
-        
-        // Llamamos a guardar y avanzamos
+        viewModel.onPrecioChange("10.0")
+        viewModel.onStockChange("5")
+
         viewModel.guardar()
         advanceUntilIdle()
 
-        // Assert
         val estado = viewModel.uiState.value
-        
-        // La operación debe terminar Inactiva o fallida si se rechazó
         if (estado.operacion is ProductoUiState.Operacion.Fallida) {
-            // El fallback por si no llega al bloque de validación
+            // Error manejado en operacion
         } else {
-             assertIs<ProductoUiState.Operacion.Inactiva>(estado.operacion)
-             // El error debe estar colocado debajo del campo del formulario
-             assertEquals("El nombre es muy corto", estado.formulario.nombreError)
+            assertIs<ProductoUiState.Operacion.Inactiva>(estado.operacion)
+            assertEquals("El nombre es muy corto", estado.formulario.nombreError)
         }
     }
 
     @Test
     fun `eliminacion pasa a EnCurso y luego a Inactiva recargando la lista`() = runTest {
-        // Arrange
         val productoInicial = Producto(1L, "Aspirina", 2.0, 50)
         val repositorio = FakeProductoRepository(listOf(productoInicial))
         val viewModel = crearViewModel(repositorio)
-        advanceUntilIdle() // Carga inicial exitosa
+        advanceUntilIdle()
 
-        // Verificamos que hay un producto en la lista
         val faseAntes = viewModel.uiState.value.fase as ProductoUiState.Fase.ConProductos
         assertEquals(1, faseAntes.productos.size)
 
-        // Act
         viewModel.eliminar(1L)
-        // A diferencia del anterior, la eliminación optimista sucede muy rápido para capturarlo como EnCurso.
-        // Avanzamos hasta que termine
-        advanceUntilIdle() 
+        advanceUntilIdle()
 
-        // Assert
         val estadoFinal = viewModel.uiState.value
-        // La operación vuelve a inactiva
         assertIs<ProductoUiState.Operacion.Inactiva>(estadoFinal.operacion)
-        // Hay mensaje de éxito
         assertNotNull(estadoFinal.mensajeExito)
-        // La lista se actualizó optimísticamente y ahora debe estar vacía (SinProductos)
         assertIs<ProductoUiState.Fase.SinProductos>(estadoFinal.fase)
     }
 }

@@ -79,6 +79,21 @@ fun ProductoScreen(
 
         uiState.mensajeExito?.let { MensajeExito(it) }
 
+        uiState.avisoRed?.let { aviso ->
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = aviso,
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
         if (uiState.operacion is ProductoUiState.Operacion.Fallida) {
             Surface(
                 shape = MaterialTheme.shapes.small,
@@ -94,7 +109,7 @@ fun ProductoScreen(
             }
         }
 
-        EncabezadoInventario(uiState.fase, operacionEnCurso)
+        EncabezadoInventario(uiState.fase, uiState.sincronizando)
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when (val fase = uiState.fase) {
@@ -142,7 +157,7 @@ fun ProductoScreen(
                         colorIcono = MaterialTheme.colorScheme.error,
                         modifier = Modifier.align(Alignment.Center),
                         accion = {
-                            FilledTonalButton(onClick = viewModel::cargarProductos) {
+                            FilledTonalButton(onClick = viewModel::sincronizar) {
                                 Text("Reintentar")
                             }
                         }
@@ -150,7 +165,6 @@ fun ProductoScreen(
             }
         }
 
-        // Tercera capacidad nativa conectada visualmente a la UI
         DispositivoInfoCard(infoDispositivo)
     }
 }

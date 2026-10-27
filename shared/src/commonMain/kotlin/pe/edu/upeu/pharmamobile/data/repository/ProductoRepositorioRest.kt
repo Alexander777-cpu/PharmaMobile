@@ -1,5 +1,7 @@
 package pe.edu.upeu.pharmamobile.data.repository
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import pe.edu.upeu.pharmamobile.data.mapper.toDomain
 import pe.edu.upeu.pharmamobile.data.mapper.toRequest
 import pe.edu.upeu.pharmamobile.data.remote.ProductoApi
@@ -11,6 +13,10 @@ class ProductoRepositorioRest(
     private val api: ProductoApi,
     private val categoriaPorDefecto: Long
 ) : ProductoRepository {
+
+    override fun observar(): Flow<List<Producto>> = flowOf(emptyList())
+
+    override suspend fun sincronizar() {}
 
     override suspend fun listar(): List<Producto> = ejecutarLlamada {
         api.listar()

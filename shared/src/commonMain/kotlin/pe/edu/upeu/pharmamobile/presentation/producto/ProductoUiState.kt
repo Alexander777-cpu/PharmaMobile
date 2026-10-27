@@ -5,7 +5,9 @@ data class ProductoUiState(
     val formulario: FormularioProducto = FormularioProducto(),
     val operacion: Operacion = Operacion.Inactiva,
     val mensajeExito: String? = null,
-    val idEdicion: Long? = null
+    val idEdicion: Long? = null,
+    val sincronizando: Boolean = false,
+    val avisoRed: String? = null
 ) {
     sealed interface Fase {
         data object Cargando : Fase

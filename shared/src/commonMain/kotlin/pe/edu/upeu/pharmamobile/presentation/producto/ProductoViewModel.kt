@@ -11,6 +11,7 @@ import pe.edu.upeu.pharmamobile.domain.error.ErrorApi
 import pe.edu.upeu.pharmamobile.domain.error.ErrorApiException
 import pe.edu.upeu.pharmamobile.domain.platform.Compartidor
 import pe.edu.upeu.pharmamobile.domain.repository.AuthRepository
+import pe.edu.upeu.pharmamobile.domain.repository.ProductoRepository
 import pe.edu.upeu.pharmamobile.domain.usecase.ActualizarProductoUseCase
 import pe.edu.upeu.pharmamobile.domain.usecase.EliminarProductoUseCase
 import pe.edu.upeu.pharmamobile.domain.usecase.ListarProductosUseCase
@@ -23,6 +24,7 @@ class ProductoViewModel(
     private val actualizarProducto: ActualizarProductoUseCase,
     private val eliminarProducto: EliminarProductoUseCase,
     private val listarProductos: ListarProductosUseCase,
+    private val productoRepository: ProductoRepository,
     private val authRepository: AuthRepository? = null,
     private val compartidor: Compartidor = object : Compartidor { override fun compartir(texto: String) {} }
 ) : ViewModel() {
@@ -31,34 +33,44 @@ class ProductoViewModel(
     val uiState: StateFlow<ProductoUiState> = _uiState.asStateFlow()
 
     init {
-        cargarProductos()
+        observarBaseDeDatos()
+        sincronizar()
     }
 
-    fun cargarProductos() {
+    private fun observarBaseDeDatos() {
         viewModelScope.launch {
-            _uiState.update { it.copy(fase = ProductoUiState.Fase.Cargando) }
+            productoRepository.observar().collect { lista ->
+                _uiState.update { estado ->
+                    estado.copy(
+                        fase = if (lista.isEmpty()) ProductoUiState.Fase.SinProductos
+                        else ProductoUiState.Fase.ConProductos(lista.map { it.toUi() })
+                    )
+                }
+            }
+        }
+    }
 
-            listarProductos().fold(
-                onSuccess = { lista ->
-                    _uiState.update { estado ->
-                        estado.copy(
-                            fase = if (lista.isEmpty()) ProductoUiState.Fase.SinProductos
-                            else ProductoUiState.Fase.ConProductos(lista.map { it.toUi() })
+    fun sincronizar() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(sincronizando = true, avisoRed = null) }
+            runCatching {
+                productoRepository.sincronizar()
+            }.onSuccess {
+                _uiState.update { it.copy(sincronizando = false, avisoRed = null) }
+            }.onFailure { excepcion ->
+                val errorDominio = (excepcion as? ErrorApiException)?.error
+                if (errorDominio is ErrorApi.SesionExpirada) {
+                    _uiState.update { it.copy(sincronizando = false, avisoRed = null) }
+                    authRepository?.expirarSesion(errorDominio.mensaje)
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            sincronizando = false,
+                            avisoRed = "Sin conexión: mostrando datos guardados"
                         )
                     }
-                },
-                onFailure = { excepcion ->
-                    val errorDominio = (excepcion as? ErrorApiException)?.error
-                    if (errorDominio is ErrorApi.SesionExpirada) {
-                        authRepository?.expirarSesion(errorDominio.mensaje)
-                    } else {
-                        val mensaje = traducirError(excepcion, esCreacion = false)
-                        _uiState.update { estado ->
-                            estado.copy(fase = ProductoUiState.Fase.Error(mensaje))
-                        }
-                    }
                 }
-            )
+            }
         }
     }
 
@@ -67,7 +79,8 @@ class ProductoViewModel(
             it.copy(
                 formulario = it.formulario.copy(nombre = nuevoNombre, nombreError = null),
                 operacion = ProductoUiState.Operacion.Inactiva,
-                mensajeExito = null
+                mensajeExito = null,
+                avisoRed = null
             )
         }
     }
@@ -77,7 +90,8 @@ class ProductoViewModel(
             it.copy(
                 formulario = it.formulario.copy(precio = nuevoPrecio, precioError = null),
                 operacion = ProductoUiState.Operacion.Inactiva,
-                mensajeExito = null
+                mensajeExito = null,
+                avisoRed = null
             )
         }
     }
@@ -87,7 +101,8 @@ class ProductoViewModel(
             it.copy(
                 formulario = it.formulario.copy(stock = nuevoStock, stockError = null),
                 operacion = ProductoUiState.Operacion.Inactiva,
-                mensajeExito = null
+                mensajeExito = null,
+                avisoRed = null
             )
         }
     }
@@ -102,7 +117,8 @@ class ProductoViewModel(
                     stock = producto.stock.replace("[^0-9]".toRegex(), "").trim()
                 ),
                 operacion = ProductoUiState.Operacion.Inactiva,
-                mensajeExito = null
+                mensajeExito = null,
+                avisoRed = null
             )
         }
     }
@@ -113,7 +129,8 @@ class ProductoViewModel(
                 idEdicion = null,
                 formulario = FormularioProducto(),
                 operacion = ProductoUiState.Operacion.Inactiva,
-                mensajeExito = null
+                mensajeExito = null,
+                avisoRed = null
             )
         }
     }
@@ -127,7 +144,7 @@ class ProductoViewModel(
         val tipoOperacion = if (esCreacion) ProductoUiState.Tipo.Crear else ProductoUiState.Tipo.Actualizar
 
         viewModelScope.launch {
-            _uiState.update { it.copy(operacion = ProductoUiState.Operacion.EnCurso(tipoOperacion), mensajeExito = null) }
+            _uiState.update { it.copy(operacion = ProductoUiState.Operacion.EnCurso(tipoOperacion), mensajeExito = null, avisoRed = null) }
 
             val resultado = if (esCreacion) {
                 registrarProducto(form.nombre, form.precio, form.stock)
@@ -136,25 +153,14 @@ class ProductoViewModel(
             }
 
             resultado.fold(
-                onSuccess = { productoModificado ->
+                onSuccess = {
                     _uiState.update { estado ->
-                        val faseActual = estado.fase
-                        val nuevaFase = if (faseActual is ProductoUiState.Fase.ConProductos) {
-                            if (esCreacion) {
-                                ProductoUiState.Fase.ConProductos(listOf(productoModificado.toUi()) + faseActual.productos)
-                            } else {
-                                ProductoUiState.Fase.ConProductos(faseActual.productos.map { if (it.id == productoModificado.id.toString()) productoModificado.toUi() else it })
-                            }
-                        } else {
-                            if (esCreacion) ProductoUiState.Fase.ConProductos(listOf(productoModificado.toUi())) else faseActual
-                        }
-
                         estado.copy(
                             operacion = ProductoUiState.Operacion.Inactiva,
                             formulario = FormularioProducto(),
                             idEdicion = null,
                             mensajeExito = if (esCreacion) "Producto registrado con éxito" else "Producto actualizado con éxito",
-                            fase = nuevaFase
+                            avisoRed = null
                         )
                     }
                 },
@@ -167,21 +173,15 @@ class ProductoViewModel(
         if (_uiState.value.operacion is ProductoUiState.Operacion.EnCurso) return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(operacion = ProductoUiState.Operacion.EnCurso(ProductoUiState.Tipo.Eliminar), mensajeExito = null) }
+            _uiState.update { it.copy(operacion = ProductoUiState.Operacion.EnCurso(ProductoUiState.Tipo.Eliminar), mensajeExito = null, avisoRed = null) }
 
             eliminarProducto(id).fold(
                 onSuccess = {
                     _uiState.update { estado ->
-                        val faseActual = estado.fase
-                        val nuevaFase = if (faseActual is ProductoUiState.Fase.ConProductos) {
-                            val listaFiltrada = faseActual.productos.filter { it.id != id.toString() }
-                            if (listaFiltrada.isEmpty()) ProductoUiState.Fase.SinProductos else ProductoUiState.Fase.ConProductos(listaFiltrada)
-                        } else faseActual
-
                         estado.copy(
                             operacion = ProductoUiState.Operacion.Inactiva,
                             mensajeExito = "Producto eliminado",
-                            fase = nuevaFase
+                            avisoRed = null
                         )
                     }
                 },
@@ -198,6 +198,7 @@ class ProductoViewModel(
         val errorDominio = (fallo as? ErrorApiException)?.error
 
         if (errorDominio is ErrorApi.SesionExpirada) {
+            _uiState.update { it.copy(operacion = ProductoUiState.Operacion.Inactiva, avisoRed = null) }
             viewModelScope.launch {
                 authRepository?.expirarSesion(errorDominio.mensaje)
             }

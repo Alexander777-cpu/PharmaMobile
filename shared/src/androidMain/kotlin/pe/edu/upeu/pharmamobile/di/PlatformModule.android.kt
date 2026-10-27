@@ -8,6 +8,10 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import pe.edu.upeu.pharmamobile.data.local.AlmacenSeguro
+import pe.edu.upeu.pharmamobile.data.local.AlmacenSeguroAndroid
+import pe.edu.upeu.pharmamobile.data.local.CreadorDeDriver
+import pe.edu.upeu.pharmamobile.data.local.CreadorDeDriverAndroid
 import pe.edu.upeu.pharmamobile.domain.platform.Compartidor
 import pe.edu.upeu.pharmamobile.platform.CompartidorAndroid
 
@@ -19,21 +23,22 @@ private fun obtenerContextoSeguro(): Context {
 }
 
 actual val platformModule: Module = module {
-    // 1. Motor de Ktor para Android
     single<HttpClientEngine> { OkHttp.create() }
 
-    // 2. URL base con barra '/' al final para que Ktor no borre 'v1'
     single(named("urlBase")) { "http://10.0.2.2:8080/api/v1/" }
 
-    // 3. Capacidad nativa de compartir (Sesión 9)
     single<Compartidor> {
         val contexto = runCatching { androidContext() }.getOrElse { obtenerContextoSeguro() }
         CompartidorAndroid(contexto)
     }
 
-    // 4. Capacidad nativa de almacenamiento seguro (Sesión 10)
-    single<pe.edu.upeu.pharmamobile.data.local.AlmacenSeguro> {
+    single<AlmacenSeguro> {
         val contexto = runCatching { androidContext() }.getOrElse { obtenerContextoSeguro() }
-        pe.edu.upeu.pharmamobile.data.local.AlmacenSeguroAndroid(contexto)
+        AlmacenSeguroAndroid(contexto)
+    }
+
+    single<CreadorDeDriver> {
+        val contexto = runCatching { androidContext() }.getOrElse { obtenerContextoSeguro() }
+        CreadorDeDriverAndroid(contexto)
     }
 }

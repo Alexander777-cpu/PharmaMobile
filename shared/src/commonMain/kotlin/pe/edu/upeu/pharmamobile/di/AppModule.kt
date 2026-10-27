@@ -6,12 +6,15 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatformTools
+import pe.edu.upeu.pharmamobil.db.PharmaDb
+import pe.edu.upeu.pharmamobile.data.local.ProductoLocal
 import pe.edu.upeu.pharmamobile.data.remote.AuthApi
 import pe.edu.upeu.pharmamobile.data.remote.ProductoApi
 import pe.edu.upeu.pharmamobile.data.remote.crearHttpClient
 import pe.edu.upeu.pharmamobile.data.repository.AuthRepositorioRest
 import pe.edu.upeu.pharmamobile.data.repository.ClienteRepositorioEnMemoria
 import pe.edu.upeu.pharmamobile.data.repository.ProductoRepositorioEnMemoria
+import pe.edu.upeu.pharmamobile.data.repository.ProductoRepositorioOffline
 import pe.edu.upeu.pharmamobile.data.repository.ProductoRepositorioRest
 import pe.edu.upeu.pharmamobile.domain.platform.Compartidor
 import pe.edu.upeu.pharmamobile.domain.repository.AuthRepository
@@ -37,7 +40,11 @@ val dataModule = module {
     single { ProductoRepositorioEnMemoria() }
     single { ProductoRepositorioRest(get(), CATEGORIA_POR_DEFECTO) }
 
-    single<ProductoRepository> { get<ProductoRepositorioRest>() }
+    single { PharmaDb(get<pe.edu.upeu.pharmamobile.data.local.CreadorDeDriver>().crear()) }
+    single { ProductoLocal(get()) }
+    single { ProductoRepositorioOffline(get(), get<ProductoRepositorioRest>()) }
+
+    single<ProductoRepository> { get<ProductoRepositorioOffline>() }
     single<ClienteRepository> { ClienteRepositorioEnMemoria() }
     single<AuthRepository> { AuthRepositorioRest(get(), get(), get()) }
 
@@ -60,6 +67,7 @@ val presentationModule = module {
             actualizarProducto = get(),
             eliminarProducto = get(),
             listarProductos = get(),
+            productoRepository = get(),
             authRepository = get(),
             compartidor = getOrNull<Compartidor>() ?: object : Compartidor {
                 override fun compartir(texto: String) {}

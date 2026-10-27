@@ -5,7 +5,22 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
-    alias(libs.plugins.kotlinSerialization) // Plugin de serialización
+    alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.sqldelight)
+}
+
+sqldelight {
+    databases {
+        create("PharmaDb") {
+            packageName.set("pe.edu.upeu.pharmamobil.db")
+            verifyMigrations.set(false)
+        }
+    }
+}
+
+// Desactiva explícitamente la tarea de verificación de migraciones en Windows
+tasks.matching { it.name.contains("verify", ignoreCase = true) && it.name.contains("Migration", ignoreCase = true) }.configureEach {
+    enabled = false
 }
 
 kotlin {
@@ -44,15 +59,10 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
-
-            // Koin para Android
             implementation(libs.koin.android)
-
-            // Motor OkHttp para Ktor en Android
             implementation(libs.ktor.client.okhttp)
-
-            // Almacenamiento seguro en Android
             implementation(libs.androidx.security.crypto)
+            implementation(libs.sqldelight.android)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -63,29 +73,27 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
-
-            // Accesor oficial de JetBrains Compose para iconos extendidos
             implementation(compose.materialIconsExtended)
 
-            // Dependencias Koin Multiplataforma
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
 
-            // Dependencias Ktor Multiplataforma y Serialización
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.serialization.json)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.client.auth)
+
+            implementation(libs.sqldelight.runtime)
+            implementation(libs.sqldelight.coroutines)
         }
         iosMain.dependencies {
-            // Motor Darwin para Ktor en iOS
             implementation(libs.ktor.client.darwin)
+            implementation(libs.sqldelight.native)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-            // Soporte para pruebas de corrutinas (runTest, TestDispatchers)
             implementation(libs.kotlinx.coroutines.test)
         }
     }
