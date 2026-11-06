@@ -8,7 +8,8 @@ data class ProductoUi(
     val nombre: String,
     val precio: String,
     val stock: String,
-    val requiereReposicion: Boolean
+    val requiereReposicion: Boolean,
+    val pendiente: Boolean = false
 )
 
 fun Producto.toUi(): ProductoUi {
@@ -17,6 +18,7 @@ fun Producto.toUi(): ProductoUi {
         nombre = this.nombre,
         precio = formatearSoles(this.precio),
         stock = "${this.stock} uds.",
-        requiereReposicion = this.stock < 10
+        requiereReposicion = this.stock < 10,
+        pendiente = this.pendiente || this.id < 0L
     )
 }

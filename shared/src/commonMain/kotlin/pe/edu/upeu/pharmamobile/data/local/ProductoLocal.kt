@@ -42,7 +42,7 @@ class ProductoLocal(db: PharmaDb) {
             entidad.intentos,
             entidad.ultimoError
         )
-        return producto.copy(id = nuevoIdLocal)
+        return producto.copy(id = nuevoIdLocal, pendiente = true)
     }
 
     fun borrarPorId(id: Long) {
@@ -94,5 +94,6 @@ fun pe.edu.upeu.pharmamobil.db.Producto.aDominio(): Producto = Producto(
     id = id,
     nombre = nombre,
     precio = precio,
-    stock = stock.toInt()
+    stock = stock.toInt(),
+    pendiente = pendiente == 1L || id < 0L
 )

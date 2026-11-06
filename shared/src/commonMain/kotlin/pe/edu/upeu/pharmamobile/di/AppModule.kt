@@ -7,6 +7,7 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatformTools
 import pe.edu.upeu.pharmamobil.db.PharmaDb
+import pe.edu.upeu.pharmamobile.data.firebase.TelemetriaFirebase
 import pe.edu.upeu.pharmamobile.data.local.ProductoLocal
 import pe.edu.upeu.pharmamobile.data.remote.AuthApi
 import pe.edu.upeu.pharmamobile.data.remote.ProductoApi
@@ -17,6 +18,7 @@ import pe.edu.upeu.pharmamobile.data.repository.ProductoRepositorioEnMemoria
 import pe.edu.upeu.pharmamobile.data.repository.ProductoRepositorioOffline
 import pe.edu.upeu.pharmamobile.data.repository.ProductoRepositorioRest
 import pe.edu.upeu.pharmamobile.domain.platform.Compartidor
+import pe.edu.upeu.pharmamobile.domain.port.Telemetria
 import pe.edu.upeu.pharmamobile.domain.repository.AuthRepository
 import pe.edu.upeu.pharmamobile.domain.repository.ClienteRepository
 import pe.edu.upeu.pharmamobile.domain.repository.ProductoRepository
@@ -47,6 +49,7 @@ val dataModule = module {
     single<ProductoRepository> { get<ProductoRepositorioOffline>() }
     single<ClienteRepository> { ClienteRepositorioEnMemoria() }
     single<AuthRepository> { AuthRepositorioRest(get(), get(), get()) }
+    single<Telemetria> { TelemetriaFirebase() }
 
     single { InfoDispositivo() }
 }
@@ -70,6 +73,7 @@ val presentationModule = module {
             productoRepository = get(),
             authRepository = get(),
             almacenSeguro = get(),
+            telemetria = getOrNull(),
             compartidor = getOrNull<Compartidor>() ?: object : Compartidor {
                 override fun compartir(texto: String) {}
             }

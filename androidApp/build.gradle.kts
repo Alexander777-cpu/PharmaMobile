@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 kotlin {
@@ -12,6 +14,9 @@ kotlin {
 }
 dependencies {
     implementation(project(":shared"))
+
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-common")
 
     implementation(libs.androidx.activity.compose)
 
@@ -36,6 +41,9 @@ android {
         }
     }
     buildTypes {
+        debug {
+            extra["enableCrashlytics"] = true
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

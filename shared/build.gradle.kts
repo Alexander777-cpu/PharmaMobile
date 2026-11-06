@@ -88,6 +88,8 @@ kotlin {
 
             implementation(libs.sqldelight.runtime)
             implementation(libs.sqldelight.coroutines)
+
+            implementation("dev.gitlive:firebase-crashlytics:2.7.0")
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

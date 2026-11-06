@@ -18,7 +18,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Medication
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -78,21 +80,6 @@ fun ProductoScreen(
 
         uiState.mensajeExito?.let { MensajeExito(it) }
 
-        uiState.avisoRed?.let { aviso ->
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = aviso,
-                    modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-
         if (uiState.operacion is ProductoUiState.Operacion.Fallida) {
             Surface(
                 shape = MaterialTheme.shapes.small,
@@ -110,8 +97,11 @@ fun ProductoScreen(
 
         EncabezadoInventario(
             fase = uiState.fase,
-            cargando = uiState.sincronizando,
-            ultimaSincronizacionTexto = uiState.ultimaSincronizacionTexto
+            sincronizando = uiState.sincronizando,
+            ultimaSincronizacionTexto = uiState.ultimaSincronizacionTexto,
+            cantidadPendientes = uiState.cantidadPendientes,
+            cantidadFallidas = uiState.cantidadFallidas,
+            avisoRed = uiState.avisoRed
         )
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -291,12 +281,96 @@ private fun FormularioProductoCard(
 @Composable
 private fun EncabezadoInventario(
     fase: ProductoUiState.Fase,
-    cargando: Boolean,
-    ultimaSincronizacionTexto: String
+    sincronizando: Boolean,
+    ultimaSincronizacionTexto: String,
+    cantidadPendientes: Int,
+    cantidadFallidas: Int,
+    avisoRed: String?
 ) {
-    Column {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        when {
+            sincronizando -> {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "Sincronizando...",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+            cantidadFallidas > 0 -> {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = if (cantidadFallidas == 1) "1 elemento no se pudo enviar" else "$cantidadFallidas elementos no se pudieron enviar",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+            avisoRed != null || cantidadPendientes > 0 -> {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        val textoBanner = if (cantidadPendientes > 0) {
+                            val textoPlural = if (cantidadPendientes == 1) "1 producto por sincronizar" else "$cantidadPendientes productos por sincronizar"
+                            "Sin conexión · $textoPlural"
+                        } else {
+                            avisoRed ?: "Sin conexión"
+                        }
+                        Text(
+                            text = textoBanner,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+        }
+
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -316,7 +390,7 @@ private fun EncabezadoInventario(
                 )
             }
         }
-        if (cargando) {
+        if (sincronizando) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
@@ -349,7 +423,39 @@ private fun ProductoItem(
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = producto.nombre, style = MaterialTheme.typography.titleSmall)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = producto.nombre,
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (producto.pendiente) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = "Pendiente",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
+                }
                 Text(
                     text = "${producto.precio}  ·  ${producto.stock}",
                     style = MaterialTheme.typography.bodySmall,

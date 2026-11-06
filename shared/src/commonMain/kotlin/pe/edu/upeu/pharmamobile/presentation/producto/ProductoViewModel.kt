@@ -11,6 +11,7 @@ import pe.edu.upeu.pharmamobile.data.local.AlmacenSeguro
 import pe.edu.upeu.pharmamobile.domain.error.ErrorApi
 import pe.edu.upeu.pharmamobile.domain.error.ErrorApiException
 import pe.edu.upeu.pharmamobile.domain.platform.Compartidor
+import pe.edu.upeu.pharmamobile.domain.port.Telemetria
 import pe.edu.upeu.pharmamobile.domain.repository.AuthRepository
 import pe.edu.upeu.pharmamobile.domain.repository.ProductoRepository
 import pe.edu.upeu.pharmamobile.domain.usecase.ActualizarProductoUseCase
@@ -30,6 +31,7 @@ class ProductoViewModel(
     private val productoRepository: ProductoRepository,
     private val authRepository: AuthRepository? = null,
     private val almacenSeguro: AlmacenSeguro? = null,
+    private val telemetria: Telemetria? = null,
     private val compartidor: Compartidor = object : Compartidor { override fun compartir(texto: String) {} }
 ) : ViewModel() {
 
@@ -51,10 +53,12 @@ class ProductoViewModel(
     private fun observarBaseDeDatos() {
         viewModelScope.launch {
             productoRepository.observar().collect { lista ->
+                val cantidadPendientes = lista.count { it.pendiente }
                 _uiState.update { estado ->
                     estado.copy(
                         fase = if (lista.isEmpty()) ProductoUiState.Fase.SinProductos
-                        else ProductoUiState.Fase.ConProductos(lista.map { it.toUi() })
+                        else ProductoUiState.Fase.ConProductos(lista.map { it.toUi() }),
+                        cantidadPendientes = cantidadPendientes
                     )
                 }
             }
@@ -77,6 +81,7 @@ class ProductoViewModel(
                         ultimaSincronizacionTexto = texto
                     )
                 }
+                telemetria?.registrarEvento("sync_productos_ejecutada", mapOf("pantalla" to "Productos", "estado" to "exito"))
             }.onFailure { excepcion ->
                 val errorDominio = (excepcion as? ErrorApiException)?.error
                 if (errorDominio is ErrorApi.SesionExpirada) {
@@ -90,6 +95,7 @@ class ProductoViewModel(
                         )
                     }
                 }
+                telemetria?.registrarError(excepcion, mapOf("pantalla" to "Productos", "accion" to "sincronizar"))
             }
         }
     }
