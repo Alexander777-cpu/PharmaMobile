@@ -13,7 +13,9 @@ import pe.edu.upeu.pharmamobile.data.local.AlmacenSeguroAndroid
 import pe.edu.upeu.pharmamobile.data.local.CreadorDeDriver
 import pe.edu.upeu.pharmamobile.data.local.CreadorDeDriverAndroid
 import pe.edu.upeu.pharmamobile.domain.platform.Compartidor
+import pe.edu.upeu.pharmamobile.domain.platform.GestorPermisos
 import pe.edu.upeu.pharmamobile.platform.CompartidorAndroid
+import pe.edu.upeu.pharmamobile.platform.GestorPermisosAndroid
 
 @SuppressLint("PrivateApi")
 private fun obtenerContextoSeguro(): Context {
@@ -40,5 +42,10 @@ actual val platformModule: Module = module {
     single<CreadorDeDriver> {
         val contexto = runCatching { androidContext() }.getOrElse { obtenerContextoSeguro() }
         CreadorDeDriverAndroid(contexto)
+    }
+
+    single<GestorPermisos> {
+        val contexto = runCatching { androidContext() }.getOrElse { obtenerContextoSeguro() }
+        GestorPermisosAndroid(contexto)
     }
 }

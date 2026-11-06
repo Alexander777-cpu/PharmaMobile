@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,12 +37,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import pe.edu.upeu.pharmamobile.domain.platform.EstadoPermiso
+import pe.edu.upeu.pharmamobile.domain.platform.GestorPermisos
+import pe.edu.upeu.pharmamobile.domain.platform.Permiso
 import pe.edu.upeu.pharmamobile.platform.InfoDispositivo
 import pe.edu.upeu.pharmamobile.presentation.components.EstadoVacio
 import pe.edu.upeu.pharmamobile.presentation.components.MensajeExito
@@ -209,15 +219,105 @@ private fun FormularioProductoCard(
     onGuardar: () -> Unit,
     onCancelar: () -> Unit
 ) {
+    val gestorPermisos: GestorPermisos = koinInject()
+    val scope = rememberCoroutineScope()
+
+    var mostrarDialogoExplicativo by remember { mutableStateOf(false) }
+    var mostrarDialogoAjustes by remember { mutableStateOf(false) }
+    var mostrarExitoCamara by remember { mutableStateOf(false) }
+
+    fun procesarClickCamara() {
+        when (gestorPermisos.estado(Permiso.Camara)) {
+            EstadoPermiso.Concedido -> mostrarExitoCamara = true
+            EstadoPermiso.Denegado -> mostrarDialogoExplicativo = true
+            EstadoPermiso.DenegadoParaSiempre -> mostrarDialogoAjustes = true
+        }
+    }
+
+    if (mostrarDialogoExplicativo) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoExplicativo = false },
+            title = { Text("Permiso de Cámara Requerido") },
+            text = { Text("Se requiere acceso a la cámara para escanear medicamentos y códigos de barras de productos.") },
+            confirmButton = {
+                Button(onClick = {
+                    mostrarDialogoExplicativo = false
+                    scope.launch {
+                        val resultado = gestorPermisos.solicitar(Permiso.Camara)
+                        if (resultado == EstadoPermiso.Concedido) {
+                            mostrarExitoCamara = true
+                        } else if (resultado == EstadoPermiso.DenegadoParaSiempre) {
+                            mostrarDialogoAjustes = true
+                        }
+                    }
+                }) {
+                    Text("Solicitar Permiso")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoExplicativo = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (mostrarDialogoAjustes) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoAjustes = false },
+            title = { Text("Permiso Bloqueado") },
+            text = { Text("El permiso de la cámara está bloqueado permanentemente en el sistema. Debe ser activado manualmente desde Ajustes.") },
+            confirmButton = {
+                Button(onClick = {
+                    mostrarDialogoAjustes = false
+                    gestorPermisos.abrirAjustes()
+                }) {
+                    Text("Ir a Ajustes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoAjustes = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (mostrarExitoCamara) {
+        AlertDialog(
+            onDismissRequest = { mostrarExitoCamara = false },
+            title = { Text("Cámara Concedida") },
+            text = { Text("El permiso de la cámara está activo. Listo para escanear productos.") },
+            confirmButton = {
+                Button(onClick = { mostrarExitoCamara = false }) {
+                    Text("Aceptar")
+                }
+            }
+        )
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = if (esEdicion) "Editar producto" else "Registrar producto",
-                style = MaterialTheme.typography.titleMedium
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = if (esEdicion) "Editar producto" else "Registrar producto",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                IconButton(onClick = { procesarClickCamara() }) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = "Escanear con Cámara",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
 
             ValidatedTextField(
                 value = formulario.nombre,

@@ -10,7 +10,9 @@ import pe.edu.upeu.pharmamobile.data.local.AlmacenSeguroIos
 import pe.edu.upeu.pharmamobile.data.local.CreadorDeDriver
 import pe.edu.upeu.pharmamobile.data.local.CreadorDeDriverIos
 import pe.edu.upeu.pharmamobile.domain.platform.Compartidor
+import pe.edu.upeu.pharmamobile.domain.platform.GestorPermisos
 import pe.edu.upeu.pharmamobile.platform.CompartidorIos
+import pe.edu.upeu.pharmamobile.platform.GestorPermisosIos
 
 actual val platformModule: Module = module {
     single<HttpClientEngine> { Darwin.create() }
@@ -22,4 +24,6 @@ actual val platformModule: Module = module {
     single<AlmacenSeguro> { AlmacenSeguroIos() }
 
     single<CreadorDeDriver> { CreadorDeDriverIos() }
+
+    single<GestorPermisos> { GestorPermisosIos() }
 }
